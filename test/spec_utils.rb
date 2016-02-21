@@ -4,6 +4,10 @@ require 'rack/utils'
 require 'rack/mock'
 require 'timeout'
 
+module Minitest::Spec::DSL
+  alias :should :it
+end
+
 describe Rack::Utils do
 
   def assert_sets exp, act
@@ -352,6 +356,43 @@ describe Rack::Utils do
       [ 'bar', 1.0 ],
       [ 'baz', 0.9 ]
     ]
+  end
+
+  it "parses RFC 7239 Forwarded header" do
+    Rack::Utils.forwarded_values('for=3.4.5.6').must_equal({
+      :for => [ '3.4.5.6' ],
+    })
+
+    Rack::Utils.forwarded_values(';;;for=3.4.5.6,,').must_equal({
+      :for => [ '3.4.5.6' ],
+    })
+
+    Rack::Utils.forwarded_values('for=3.4.5.6').must_equal({
+      :for => [ '3.4.5.6' ],
+    })
+
+    Rack::Utils.forwarded_values('for =  3.4.5.6').must_equal({
+      :for => [ '3.4.5.6' ],
+    })
+
+    Rack::Utils.forwarded_values('for="3.4.5.6"').must_equal({
+      :for => [ '3.4.5.6' ],
+    })
+
+    Rack::Utils.forwarded_values('for=3.4.5.6;proto=https').must_equal({
+      :for   => [ '3.4.5.6' ],
+      :proto => [ 'https' ]
+    })
+
+    Rack::Utils.forwarded_values('for=3.4.5.6; proto=http, proto=https').must_equal({
+      :for   => [ '3.4.5.6' ],
+      :proto => [ 'http', 'https' ]
+    })
+
+    Rack::Utils.forwarded_values('for=3.4.5.6; proto=http, proto=https; for=1.2.3.4').must_equal({
+      :for   => [ '3.4.5.6', '1.2.3.4' ],
+      :proto => [ 'http', 'https' ]
+    })
   end
 
   it "select best quality match" do
